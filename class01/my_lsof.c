@@ -9,9 +9,9 @@
 void readlinks(char* pid, char* dir_name);
 
 int main() {
-    printf("pid \t inode \t\t\t pathname\n");
+    printf("pid \t pathname\n");
     regex_t regex;
-    if (regcomp(&regex, "[0-9]", 0) != 0) { // pid dirs
+    if (regcomp(&regex, "^[0-9][0-9]*$", 0) != 0) { // pid dirs
         fputs("Regular expression compilation error!\n", stderr);
         return -1;
     }
@@ -22,7 +22,7 @@ int main() {
     proc_dir = opendir("/proc");
 
     if (proc_dir == NULL) {
-        perror("opendir(/proc)");
+        perror("opendir(\"/proc\")");
         return -1;
     }
 
@@ -34,9 +34,10 @@ int main() {
         readlinks(dir->d_name, "map_files");
     }
 
-    if (closedir(proc_dir) != 0)
-        fputs("Error in closing proc directory!", stderr);
-
+    if (closedir(proc_dir) != 0) {
+		perror("closedir(\"/proc\")");
+		return -1;
+	}
 
     return 0;
 }
@@ -46,13 +47,20 @@ void readlinks(char* pid, char* dir_name) {
     const int files_path_len = 256 + 64;
     char files_path[files_path_len];
     const int dir_path_len = snprintf(files_path, files_path_len - 1, "/proc/%s/%s/", pid, dir_name);
+	
+	if (dir_path_len < 0) {
+	    perror(files_path);
+		return;
+	}
 
     DIR* files_dir;
     struct dirent *file;
     files_dir = opendir(files_path);
 
-    if (files_dir == NULL)
+    if (files_dir == NULL) {
+		perror(files_path);
         return;
+	}
 
     while ((file = readdir(files_dir)) != NULL) {
         files_path[dir_path_len] = '\0';
@@ -69,8 +77,11 @@ void readlinks(char* pid, char* dir_name) {
         printf("%s\n", link_name);
     }
 
-    if (closedir(files_dir) != 0)
-        fprintf(stderr, "Error in closing %s directory!", dir_name);
+	if (closedir(files_dir) != 0) {
+		fputs(pid, stderr);
+        perror(": closedir");
+        return;
+    }
 }
 
 

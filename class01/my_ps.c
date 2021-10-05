@@ -7,9 +7,11 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+char* getCommandName(char* command, const int comm_len, const char* pid, const char* source);
+
 int main() {
     regex_t regex;
-    if (regcomp(&regex, "[0-9]", 0) != 0) { // pid dirs
+    if (regcomp(&regex, "^[0-9][0-9]*$", 0) != 0) { // pid dirs
         fputs("Regular expression compilation error!\n", stderr);
         return -1;
     }
@@ -20,70 +22,77 @@ int main() {
     proc_dir = opendir("/proc");
 
     if (proc_dir == NULL) {
-        perror("opendir(/proc)");
+        perror("opendir(\"/proc\")");
         return -1;
     }
+	
     puts("PID CMD");
 
     while ((dir = readdir(proc_dir)) != NULL) {
         if (regexec(&regex, dir->d_name, 0, NULL, 0) != 0)
             continue;
+		
         printf("%s ", dir->d_name);
-
-        // Open and read from /proc/[PID]/cmdline
-        const int comm_len = 256 + 11;
-        char comm_path[comm_len];
-        sprintf(comm_path, "/proc/%s/cmdline", dir->d_name);
-        int fd = open(comm_path, O_RDONLY);
-
-        if (fd < 0) {
-            printf(" \n");
-            continue;
-        }
-
-        int bytes_read = read(fd, comm_path, comm_len - 1);
-
-        if (bytes_read > 0) {
-            comm_path[bytes_read] = '\0';
-
-            char* space = strchr(comm_path, ' ');
-            if (space != NULL)
-                *space = '\0';
-
-            printf("%s\n", comm_path);
-        } else if (bytes_read == 0) {
-            if (close(fd) != 0)
-                fputs("Error in closing file!", stderr);
-
-            // Open and read from /proc/[PID]/comm
-            sprintf(comm_path, "/proc/%s/comm", dir->d_name);
-            fd = open(comm_path, O_RDONLY);
-
-            if (fd < 0) {
-                printf(" \n");
-                continue;
-            }
-
-            bytes_read = read(fd, comm_path, comm_len - 1);
-
-            if (bytes_read > 0) {
-                comm_path[bytes_read] = '\0';
-                printf("%s", comm_path);
-            } else {
-                printf(" \n");
-            }
-        } else {
-            printf(" \n");
-        }
-
-        if (close(fd) != 0)
-            fputs("Error in closing file!", stderr);
-
+		
+		const int comm_len = 256 + 11;
+        char command[comm_len];
+		
+		if (getCommandName(command, comm_len, dir->d_name, "cmdline") == NULL) {
+			if (getCommandName(command, comm_len, dir->d_name, "comm") == NULL) {
+				puts(" ");
+				continue;
+			}
+		}
+		
+		printf("%s\n", command);
     }
 
-    closedir(proc_dir);
+    if (closedir(proc_dir) != 0) {
+		perror("closedir(\"/proc\")");
+		return -1;
+	}
 
     return 0;
+}
+
+char* getCommandName(char* command, const int comm_len, const char* pid, const char* source) {
+    // Open and read from /proc/[PID]/{source}
+	command[comm_len - 1] = '\0';
+	int read_bytes = snprintf(command, comm_len - 1, "/proc/%s/%s", pid, source);
+	
+	if (read_bytes <= 0) {
+		perror(command);
+		return NULL;
+	}
+	
+	int fd = open(command, O_RDONLY);
+
+	if (fd < 0) {
+		perror(command);
+		return NULL;
+	}
+
+	int bytes_read = read(fd, command, comm_len - 1);
+	
+	if (close(fd) != 0) {
+		fputs("Error in closing file. ", stderr);
+		perror("close");
+	}
+
+	if (bytes_read > 0) {
+		command[bytes_read] = '\0';
+
+		char* space = strchr(command, ' ');
+		if (space != NULL)
+			*space = '\0';
+		else if ((space = strchr(command, '\n')) != NULL)
+            *space = '\0';
+
+		return command;
+	} else 
+		return NULL;
+	
+	return command;
 }
 
 // The start time of the process is located at /proc/PID/stat column 22.
