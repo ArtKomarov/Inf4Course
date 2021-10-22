@@ -35,9 +35,9 @@ int main() {
     }
 
     if (closedir(proc_dir) != 0) {
-		perror("closedir(\"/proc\")");
-		return -1;
-	}
+        perror("closedir(\"/proc\")");
+        return -1;
+    }
 
     return 0;
 }
@@ -47,20 +47,15 @@ void readlinks(char* pid, char* dir_name) {
     const int files_path_len = 256 + 64;
     char files_path[files_path_len];
     const int dir_path_len = snprintf(files_path, files_path_len - 1, "/proc/%s/%s/", pid, dir_name);
-	
-	if (dir_path_len < 0) {
-	    perror(files_path);
-		return;
-	}
 
     DIR* files_dir;
     struct dirent *file;
     files_dir = opendir(files_path);
 
     if (files_dir == NULL) {
-		perror(files_path);
+        perror(files_path);
         return;
-	}
+    }
 
     while ((file = readdir(files_dir)) != NULL) {
         files_path[dir_path_len] = '\0';
@@ -77,8 +72,8 @@ void readlinks(char* pid, char* dir_name) {
         printf("%s\n", link_name);
     }
 
-	if (closedir(files_dir) != 0) {
-		fputs(pid, stderr);
+    if (closedir(files_dir) != 0) {
+        fputs(pid, stderr);
         perror(": closedir");
         return;
     }

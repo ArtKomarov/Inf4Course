@@ -25,74 +25,69 @@ int main() {
         perror("opendir(\"/proc\")");
         return -1;
     }
-	
+
     puts("PID CMD");
 
     while ((dir = readdir(proc_dir)) != NULL) {
         if (regexec(&regex, dir->d_name, 0, NULL, 0) != 0)
             continue;
-		
+
         printf("%s ", dir->d_name);
-		
-		const int comm_len = 256 + 11;
+
+        const int comm_len = 256 + 11;
         char command[comm_len];
-		
-		if (getCommandName(command, comm_len, dir->d_name, "cmdline") == NULL) {
-			if (getCommandName(command, comm_len, dir->d_name, "comm") == NULL) {
-				puts(" ");
-				continue;
-			}
-		}
-		
-		printf("%s\n", command);
+
+        if (getCommandName(command, comm_len, dir->d_name, "cmdline") == NULL) {
+            if (getCommandName(command, comm_len, dir->d_name, "comm") == NULL) {
+                puts(" ");
+                continue;
+            }
+        }
+
+        printf("%s\n", command);
     }
 
     if (closedir(proc_dir) != 0) {
-		perror("closedir(\"/proc\")");
-		return -1;
-	}
+        perror("closedir(\"/proc\")");
+        return -1;
+    }
 
     return 0;
 }
 
 char* getCommandName(char* command, const int comm_len, const char* pid, const char* source) {
     // Open and read from /proc/[PID]/{source}
-	command[comm_len - 1] = '\0';
-	int read_bytes = snprintf(command, comm_len - 1, "/proc/%s/%s", pid, source);
-	
-	if (read_bytes <= 0) {
-		perror(command);
-		return NULL;
-	}
-	
-	int fd = open(command, O_RDONLY);
+    command[comm_len - 1] = '\0';
+    snprintf(command, comm_len - 1, "/proc/%s/%s", pid, source);
 
-	if (fd < 0) {
-		perror(command);
-		return NULL;
-	}
+    int fd = open(command, O_RDONLY);
 
-	int bytes_read = read(fd, command, comm_len - 1);
-	
-	if (close(fd) != 0) {
-		fputs("Error in closing file. ", stderr);
-		perror("close");
-	}
+    if (fd < 0) {
+        perror(command);
+        return NULL;
+    }
 
-	if (bytes_read > 0) {
-		command[bytes_read] = '\0';
+    int bytes_read = read(fd, command, comm_len - 1);
 
-		char* space = strchr(command, ' ');
-		if (space != NULL)
-			*space = '\0';
-		else if ((space = strchr(command, '\n')) != NULL)
+    if (close(fd) != 0) {
+        fputs("Error in closing file. ", stderr);
+        perror("close");
+    }
+
+    if (bytes_read > 0) {
+        command[bytes_read] = '\0';
+
+        char* space = strchr(command, ' ');
+        if (space != NULL)
+            *space = '\0';
+        else if ((space = strchr(command, '\n')) != NULL)
             *space = '\0';
 
-		return command;
-	} else 
-		return NULL;
-	
-	return command;
+        return command;
+    } else
+        return NULL;
+
+    return command;
 }
 
 // The start time of the process is located at /proc/PID/stat column 22.

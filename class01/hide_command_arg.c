@@ -36,11 +36,11 @@ int main(int argc, char* argv[]) {
     }
 
     tmp = fgets(buf, sizeof(buf), f);
-	
+
     if (fclose(f) != 0) {
-		perror("fclose stat");
-	}
-	
+        perror("fclose stat");
+    }
+
     if (!tmp) {
         return -1;
     }
@@ -69,14 +69,14 @@ int main(int argc, char* argv[]) {
 
     // Check cmdline
     char system_str[128];
-	system_str[127] = '\0';
+    system_str[127] = '\0';
     snprintf(system_str, 128 - 1, "cat /proc/%d/cmdline", getpid());
-	
+
     if (system(system_str) == -1) {
-		perror("system");
-		return -1;
-	}
-	
+        perror("system");
+        return -1;
+    }
+
     puts("");
 
     return 0;
